@@ -1,211 +1,275 @@
-// Espera a que todo el HTML cargue antes de ejecutar JavaScript.
+// Espera a que todo el contenido HTML cargue antes de ejecutar el código JavaScript.
 document.addEventListener("DOMContentLoaded", () => {
 
-    // Obtiene el formulario principal.
+    // Guarda en una variable el formulario principal de la página.
     const formulario = document.getElementById("formulario");
 
-    // Obtiene la caja donde se mostrarán errores.
+    // Guarda en una variable la caja donde se mostrarán los mensajes de error.
     const errorBox = document.getElementById("error");
 
-    // Obtiene el control de velocidad de simulación.
+    // Guarda en una variable la barra que controla la velocidad de la simulación.
     const velocidadSimulacion = document.getElementById("velocidadSimulacion");
 
-    // Obtiene el texto donde se muestra la velocidad actual.
+    // Guarda en una variable el texto que muestra la velocidad actual.
     const speedLabel = document.getElementById("speedLabel");
 
-    // Obtiene el selector de escala visual.
+    // Guarda en una variable el selector de escala visual.
     const escalaVisual = document.getElementById("escalaVisual");
 
-    // Obtiene el área donde se dibuja el sistema solar.
+    // Guarda en una variable el contenedor donde se dibuja el sistema solar.
     const solarSystem = document.getElementById("solarSystem");
 
-    // Obtiene el texto informativo de la simulación.
+    // Guarda en una variable el párrafo donde se muestra información de la simulación.
     const simulationInfo = document.getElementById("simulationInfo");
 
-    // Obtiene la sección de resultados.
+    // Guarda en una variable la sección donde aparecen los resultados.
     const resultados = document.getElementById("resultados");
 
-    // Obtiene el cuerpo de la tabla donde se insertarán datos.
+    // Guarda en una variable el cuerpo de la tabla donde se agregan los datos calculados.
     const tablaResultados = document.getElementById("tablaResultados");
 
-    // Obtiene la sección de explicación.
+    // Guarda en una variable la sección donde aparece la explicación del procedimiento.
     const explicacion = document.getElementById("explicacion");
 
-    // Obtiene la lista donde se insertarán los pasos.
+    // Guarda en una variable la lista donde se agregan los pasos explicativos.
     const listaExplicacion = document.getElementById("listaExplicacion");
 
-    // Botón para pausar la simulación.
+    // Guarda en una variable el botón para pausar la simulación.
     const btnPausar = document.getElementById("btnPausar");
 
-    // Botón para reanudar la simulación.
+    // Guarda en una variable el botón para reanudar la simulación.
     const btnReanudar = document.getElementById("btnReanudar");
 
-    // Botón para reiniciar la simulación.
+    // Guarda en una variable el botón para reiniciar la simulación.
     const btnReiniciar = document.getElementById("btnReiniciar");
 
-    // Guarda los planetas que se están simulando.
+    // Lista donde se guardarán los planetas que se están simulando.
     let planetasSimulados = [];
 
-    // Indica si la animación está activa.
+    // Variable booleana que indica si la animación está activa o pausada.
     let animacionActiva = false;
 
-    // Guarda el identificador de la animación.
+    // Guarda el identificador de la animación para poder cancelarla después.
     let idAnimacion = null;
 
-    // Guarda el tiempo del frame anterior.
+    // Guarda el tiempo del frame anterior para calcular cuánto tiempo pasó.
     let ultimoTiempo = null;
 
-    // Guarda cuántos días han pasado en la simulación.
+    // Guarda la cantidad de días que han pasado dentro de la simulación.
     let diasSimulados = 0;
 
-    // Distancia mínima usada para escalar órbitas.
+    // Distancia mínima al Sol usada para calcular la escala visual de las órbitas.
     const DISTANCIA_MIN_KM = 57_900_000;
 
-    // Distancia máxima usada para escalar órbitas.
+    // Distancia máxima al Sol usada para calcular la escala visual de las órbitas.
     const DISTANCIA_MAX_KM = 4_495_100_000;
 
-    // Actualiza el texto cuando el usuario mueve la barra de velocidad.
+    // Detecta cuando el usuario mueve la barra de velocidad.
     velocidadSimulacion.addEventListener("input", () => {
+
+        // Actualiza el texto que muestra cuántos días pasan por segundo.
         speedLabel.textContent = `${velocidadSimulacion.value} días/segundo`;
     });
 
-    // Evento que se ejecuta cuando el usuario presiona “Calcular y simular”.
+    // Detecta cuando el usuario presiona el botón “Calcular y simular”.
     formulario.addEventListener("submit", async (event) => {
 
-        // Evita que la página se recargue.
+        // Evita que el formulario recargue la página.
         event.preventDefault();
 
-        // Oculta errores anteriores.
+        // Oculta cualquier error anterior.
         ocultarError();
 
-        // Obtiene los planetas seleccionados.
+        // Obtiene la lista de planetas seleccionados.
         const seleccionados = obtenerPlanetasSeleccionados();
 
-        // Valida que se haya seleccionado al menos un planeta.
+        // Verifica si no se seleccionó ningún planeta.
         if (seleccionados.length === 0) {
+
+            // Muestra un mensaje de error.
             mostrarError("Debe seleccionar al menos un planeta para simular.");
+
+            // Detiene la ejecución de esta función.
             return;
         }
 
+        // Intenta enviar los datos al servidor Flask.
         try {
-            // Envía los planetas seleccionados al backend Flask.
+
+            // Envía una petición POST a la ruta /calcular del backend.
             const respuesta = await fetch("/calcular", {
+
+                // Define que se enviarán datos mediante POST.
                 method: "POST",
+
+                // Indica que el contenido enviado será JSON.
                 headers: {
                     "Content-Type": "application/json"
                 },
+
+                // Convierte la lista de planetas seleccionados a formato JSON.
                 body: JSON.stringify({
                     planetas: seleccionados
                 })
             });
 
-            // Convierte la respuesta JSON a objeto de JavaScript.
+            // Convierte la respuesta del backend a un objeto de JavaScript.
             const data = await respuesta.json();
 
-            // Si Flask devuelve error, lo muestra.
+            // Verifica si el backend respondió con error.
             if (!data.ok) {
+
+                // Muestra el error enviado por Flask.
                 mostrarError(data.error);
+
+                // Detiene la función.
                 return;
             }
 
-            // Carga la simulación visual.
+            // Crea la simulación visual con los planetas recibidos.
             cargarSimulacion(data.planetas);
 
-            // Muestra la tabla con resultados físicos.
+            // Muestra los datos físicos en la tabla.
             mostrarTabla(data.planetas);
 
-            // Muestra la explicación física.
+            // Muestra los pasos del procedimiento físico.
             mostrarExplicacion(data.explicacion);
 
         } catch (error) {
-            // Error si no se pudo conectar con Flask.
+
+            // Muestra este error si no se pudo conectar con Flask.
             mostrarError("No se pudo conectar con el servidor Flask.");
         }
     });
 
-    // Pausa la animación.
+    // Detecta cuando el usuario presiona el botón de pausar.
     btnPausar.addEventListener("click", () => {
+
+        // Cambia el estado de la animación a falso.
         animacionActiva = false;
 
+        // Verifica si existe una animación activa.
         if (idAnimacion) {
+
+            // Cancela la animación actual.
             cancelAnimationFrame(idAnimacion);
         }
 
+        // Cambia el texto informativo.
         simulationInfo.textContent = "Simulación pausada.";
     });
 
-    // Reanuda la animación.
+    // Detecta cuando el usuario presiona el botón de reanudar.
     btnReanudar.addEventListener("click", () => {
+
+        // Verifica si todavía no hay planetas simulados.
         if (planetasSimulados.length === 0) {
+
+            // Muestra un error.
             mostrarError("Primero debe calcular una simulación.");
+
+            // Detiene la función.
             return;
         }
 
+        // Activa la animación.
         animacionActiva = true;
-        ultimoTiempo = null;
-        animar();
 
+        // Reinicia el tiempo anterior para evitar saltos bruscos.
+        ultimoTiempo = null;
+
+        // Inicia nuevamente la animación.
+        idAnimacion = requestAnimationFrame(animar);
+
+        // Actualiza el texto informativo.
         simulationInfo.textContent = "Simulación en movimiento.";
     });
 
-    // Reinicia la simulación al día cero.
+    // Detecta cuando el usuario presiona el botón de reiniciar.
     btnReiniciar.addEventListener("click", () => {
+
+        // Reinicia el contador de días simulados.
         diasSimulados = 0;
+
+        // Reinicia el tiempo anterior.
         ultimoTiempo = null;
+
+        // Vuelve a colocar los planetas en su posición inicial.
         actualizarPosiciones();
 
+        // Actualiza el texto informativo.
         simulationInfo.textContent = "Simulación reiniciada al día 0.";
     });
 
-    // Obtiene todos los planetas que el usuario marcó.
+    // Función que obtiene los planetas marcados por el usuario.
     function obtenerPlanetasSeleccionados() {
 
-        // Busca todos los checkboxes seleccionados.
+        // Busca todos los checkboxes de planetas que estén seleccionados.
         const checks = document.querySelectorAll('input[name="planetas"]:checked');
 
-        // Convierte los checkboxes a una lista de nombres.
+        // Convierte los checkboxes seleccionados en una lista con sus nombres.
         return Array.from(checks).map(check => check.value);
     }
 
-    // Crea la simulación visual con los planetas recibidos.
+    // Función que crea y carga la simulación en pantalla.
     function cargarSimulacion(planetas) {
 
         // Borra planetas y órbitas anteriores.
         limpiarSistema();
 
-        // Reinicia el tiempo.
+        // Reinicia los días simulados.
         diasSimulados = 0;
 
-        // Reinicia el control de tiempo.
+        // Reinicia el tiempo del frame anterior.
         ultimoTiempo = null;
 
-        // Crea los planetas visuales.
+        // Verifica si ya había una animación activa.
+        if (idAnimacion) {
+
+            // Cancela la animación anterior.
+            cancelAnimationFrame(idAnimacion);
+        }
+
+        // Recorre cada planeta recibido desde Flask y crea sus elementos visuales.
         planetasSimulados = planetas.map((planeta, index) => {
 
-            // Calcula el tamaño visual de la órbita.
+            // Calcula el radio visual de la órbita según la distancia real del planeta al Sol.
             const orbitRadius = calcularRadioOrbita(planeta.distancia_sol_km);
 
-            // Calcula el tamaño visual del planeta.
+            // Calcula el tamaño visual del planeta según su diámetro.
             const planetSize = calcularTamanoPlaneta(planeta.diametro_km);
 
-            // Crea la línea de órbita.
+            // Crea el elemento HTML que representa la órbita.
             const orbitElement = crearOrbita(orbitRadius);
 
-            // Crea el planeta.
+            // Crea el elemento HTML que representa el planeta.
             const planetElement = crearPlaneta(planeta, planetSize);
 
-            // Agrega la órbita al sistema solar.
+            // Agrega la órbita al contenedor del sistema solar.
             solarSystem.appendChild(orbitElement);
 
-            // Agrega el planeta al sistema solar.
+            // Agrega el planeta al contenedor del sistema solar.
             solarSystem.appendChild(planetElement);
 
-            // Devuelve un objeto con datos físicos y visuales.
+            // Devuelve un objeto con los datos físicos y visuales del planeta.
             return {
+
+                // Copia todos los datos originales del planeta.
                 ...planeta,
+
+                // Guarda el radio visual de la órbita.
                 orbitRadius,
+
+                // Guarda el tamaño visual del planeta.
                 planetSize,
+
+                // Guarda el elemento HTML del planeta.
                 element: planetElement,
+
+                // Guarda la superficie del planeta para poder rotarla.
+                surface: planetElement.querySelector(".planet-surface"),
+
+                // Define una posición inicial distinta para cada planeta.
                 initialAngle: (index * 2 * Math.PI) / planetas.length
             };
         });
@@ -213,7 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Muestra la sección de resultados.
         resultados.classList.remove("hidden");
 
-        // Muestra la explicación.
+        // Muestra la sección de explicación.
         explicacion.classList.remove("hidden");
 
         // Coloca los planetas en su posición inicial.
@@ -222,157 +286,191 @@ document.addEventListener("DOMContentLoaded", () => {
         // Activa la animación.
         animacionActiva = true;
 
-        // Inicia el movimiento.
-        animar();
+        // Inicia la animación con requestAnimationFrame.
+        idAnimacion = requestAnimationFrame(animar);
 
-        // Actualiza el texto informativo.
+        // Muestra información sobre la simulación.
         simulationInfo.textContent =
-            `Simulando ${planetas.length} planeta(s). Velocidad: ${velocidadSimulacion.value} días/segundo.`;
+            `Simulando ${planetas.length} planeta(s). Ahora tienen traslación alrededor del Sol y rotación propia visible.`;
     }
 
-    // Elimina órbitas y planetas anteriores, pero deja el Sol.
+    // Función que borra planetas y órbitas anteriores.
     function limpiarSistema() {
 
-        // Busca órbitas y planetas creados por JavaScript.
+        // Busca todos los elementos que sean órbitas o planetas.
         const elementos = solarSystem.querySelectorAll(".orbit-path, .planet-body");
 
         // Elimina cada elemento encontrado.
         elementos.forEach(elemento => elemento.remove());
     }
 
-    // Crea visualmente una órbita.
+    // Función que crea una órbita visual.
     function crearOrbita(radio) {
 
-        // Crea un div para la órbita.
+        // Crea un div para representar la órbita.
         const orbit = document.createElement("div");
 
-        // Le agrega la clase CSS de órbita.
+        // Agrega la clase CSS que le da forma de órbita.
         orbit.classList.add("orbit-path");
 
         // Define el ancho de la órbita.
         orbit.style.width = `${radio * 2}px`;
 
-        // Define la altura, menor que el ancho para verse en perspectiva.
+        // Define la altura de la órbita, reducida para dar perspectiva.
         orbit.style.height = `${radio * 2 * 0.55}px`;
 
         // Devuelve la órbita creada.
         return orbit;
     }
 
-    // Crea visualmente un planeta.
+    // Función que crea visualmente un planeta.
     function crearPlaneta(planeta, size) {
 
-        // Crea un div para el planeta.
+        // Crea el contenedor principal del planeta.
         const element = document.createElement("div");
 
-        // Le agrega la clase CSS de planeta.
+        // Agrega la clase CSS del planeta.
         element.classList.add("planet-body");
 
-        // Define el ancho visual del planeta.
+        // Define el ancho del planeta.
         element.style.width = `${size}px`;
 
-        // Define el alto visual del planeta.
+        // Define la altura del planeta.
         element.style.height = `${size}px`;
 
-        // Define el color o textura del planeta.
-        element.style.background = obtenerEstiloPlaneta(planeta.nombre);
+        // Crea un eje visual para mostrar que el planeta rota.
+        const eje = document.createElement("div");
 
-        // Si el planeta es Saturno, se le agrega un anillo.
+        // Agrega la clase CSS del eje.
+        eje.classList.add("planet-axis");
+
+        // Crea la superficie del planeta.
+        const surface = document.createElement("div");
+
+        // Agrega la clase CSS de superficie.
+        surface.classList.add("planet-surface");
+
+        // Aplica el color o textura del planeta.
+        surface.style.background = obtenerEstiloPlaneta(planeta.nombre);
+
+        // Verifica si el planeta es Saturno.
         if (planeta.nombre === "Saturno") {
+
+            // Crea el anillo de Saturno.
             const ring = document.createElement("div");
+
+            // Agrega la clase CSS del anillo.
             ring.classList.add("saturn-ring");
+
+            // Agrega el anillo al planeta.
             element.appendChild(ring);
         }
 
-        // Si el planeta es Tierra, se agregan continentes decorativos.
+        // Verifica si el planeta es la Tierra.
         if (planeta.nombre === "Tierra") {
+
+            // Crea el primer continente decorativo.
             const land1 = document.createElement("div");
+
+            // Agrega clases CSS al primer continente.
             land1.classList.add("earth-land", "land-1");
 
+            // Crea el segundo continente decorativo.
             const land2 = document.createElement("div");
+
+            // Agrega clases CSS al segundo continente.
             land2.classList.add("earth-land", "land-2");
 
-            element.appendChild(land1);
-            element.appendChild(land2);
+            // Agrega el primer continente a la superficie.
+            surface.appendChild(land1);
+
+            // Agrega el segundo continente a la superficie.
+            surface.appendChild(land2);
         }
 
-        // Crea la etiqueta del planeta.
+        // Crea una etiqueta para mostrar el nombre del planeta.
         const label = document.createElement("span");
 
-        // Le agrega la clase CSS de etiqueta.
+        // Agrega la clase CSS de etiqueta.
         label.classList.add("planet-label");
 
-        // Escribe el nombre del planeta.
+        // Escribe el nombre del planeta en la etiqueta.
         label.textContent = planeta.nombre;
+
+        // Agrega el eje al planeta.
+        element.appendChild(eje);
+
+        // Agrega la superficie al planeta.
+        element.appendChild(surface);
 
         // Agrega la etiqueta al planeta.
         element.appendChild(label);
 
-        // Devuelve el planeta creado.
+        // Devuelve el planeta completo.
         return element;
     }
 
     // Función principal de animación.
     function animar(timestamp) {
 
-        // Si la animación no está activa, no hace nada.
+        // Si la animación está pausada, se detiene.
         if (!animacionActiva) {
+
+            // Sale de la función.
             return;
         }
 
-        // Si no hay tiempo anterior, se usa el tiempo actual.
-        if (!ultimoTiempo) {
+        // Si no hay tiempo anterior, se asigna el tiempo actual.
+        if (ultimoTiempo === null) {
+
+            // Guarda el tiempo actual como referencia.
             ultimoTiempo = timestamp;
         }
 
-        // Calcula cuántos segundos pasaron entre un frame y otro.
+        // Calcula cuántos segundos pasaron desde el frame anterior.
         const segundosTranscurridos = (timestamp - ultimoTiempo) / 1000;
 
-        // Actualiza el último tiempo.
+        // Actualiza el último tiempo registrado.
         ultimoTiempo = timestamp;
 
-        // Obtiene la velocidad de simulación elegida por el usuario.
+        // Lee la cantidad de días por segundo desde la barra de velocidad.
         const diasPorSegundo = Number(velocidadSimulacion.value);
 
-        // Aumenta los días simulados.
+        // Aumenta los días simulados según el tiempo transcurrido.
         diasSimulados += segundosTranscurridos * diasPorSegundo;
 
-        // Actualiza las posiciones de los planetas.
+        // Actualiza la posición y rotación de los planetas.
         actualizarPosiciones();
 
-        // Solicita al navegador el siguiente frame de animación.
+        // Pide al navegador que vuelva a ejecutar esta función en el próximo frame.
         idAnimacion = requestAnimationFrame(animar);
     }
 
-    // Actualiza la posición orbital y la rotación de cada planeta.
+    // Función que actualiza la posición orbital y la rotación propia.
     function actualizarPosiciones() {
 
-        // Obtiene el tamaño del contenedor del sistema solar.
+        // Obtiene el tamaño y posición del contenedor del sistema solar.
         const rect = solarSystem.getBoundingClientRect();
 
-        // Calcula el centro horizontal.
+        // Calcula el centro horizontal del sistema solar.
         const centroX = rect.width / 2;
 
-        // Calcula el centro vertical.
+        // Calcula el centro vertical del sistema solar.
         const centroY = rect.height / 2;
 
         // Recorre cada planeta simulado.
         planetasSimulados.forEach(planeta => {
 
-            // Calcula el ángulo orbital actual.
+            // Calcula el ángulo actual de traslación orbital.
             const anguloOrbital =
                 planeta.initialAngle +
                 (2 * Math.PI * diasSimulados) / planeta.periodo_orbital_dias;
 
-            // Calcula la posición horizontal usando coseno.
+            // Calcula la posición X del planeta usando coseno.
             const x = centroX + planeta.orbitRadius * Math.cos(anguloOrbital);
 
-            // Calcula la posición vertical usando seno.
+            // Calcula la posición Y del planeta usando seno.
             const y = centroY + planeta.orbitRadius * 0.55 * Math.sin(anguloOrbital);
-
-            // Calcula la rotación propia del planeta.
-            const gradosRotacion =
-                (diasSimulados * 24 * 360) / planeta.periodo_rotacion_horas;
 
             // Mueve el planeta horizontalmente.
             planeta.element.style.left = `${x}px`;
@@ -380,104 +478,127 @@ document.addEventListener("DOMContentLoaded", () => {
             // Mueve el planeta verticalmente.
             planeta.element.style.top = `${y}px`;
 
-            // Centra el planeta y lo rota sobre su propio eje.
-            planeta.element.style.transform =
-                `translate(-50%, -50%) rotate(${gradosRotacion}deg)`;
+            // Centra el planeta sin rotar todo su contenedor.
+            planeta.element.style.transform = "translate(-50%, -50%)";
+
+            // Calcula los grados de rotación propia del planeta.
+            const gradosRotacion =
+                (diasSimulados * 24 * 360) / planeta.periodo_rotacion_horas;
+
+            // Rota solamente la superficie del planeta, no toda la órbita.
+            planeta.surface.style.transform = `rotate(${gradosRotacion}deg)`;
         });
     }
 
-    // Calcula el radio visual de la órbita.
+    // Función que calcula el tamaño visual de la órbita.
     function calcularRadioOrbita(distanciaKm) {
 
         // Obtiene el tamaño del sistema solar en pantalla.
         const rect = solarSystem.getBoundingClientRect();
 
-        // Calcula el radio máximo permitido.
+        // Calcula el radio máximo permitido dentro del contenedor.
         const maxRadio = Math.min(rect.width, rect.height) * 0.43;
 
-        // Define un radio mínimo.
+        // Define un radio mínimo para que los planetas no queden pegados al Sol.
         const minRadio = 55;
 
-        // Si el usuario eligió escala compacta.
+        // Verifica si el usuario eligió la escala compacta.
         if (escalaVisual.value === "compacta") {
 
-            // Normaliza la distancia entre 0 y 1.
+            // Normaliza la distancia real entre 0 y 1 usando escala lineal.
             const normal =
                 (distanciaKm - DISTANCIA_MIN_KM) /
                 (DISTANCIA_MAX_KM - DISTANCIA_MIN_KM);
 
-            // Devuelve un radio proporcional.
+            // Devuelve el radio visual calculado.
             return minRadio + normal * (maxRadio - minRadio);
         }
 
-        // Convierte la distancia mínima a logaritmo.
+        // Calcula el logaritmo de la distancia mínima.
         const logMin = Math.log10(DISTANCIA_MIN_KM);
 
-        // Convierte la distancia máxima a logaritmo.
+        // Calcula el logaritmo de la distancia máxima.
         const logMax = Math.log10(DISTANCIA_MAX_KM);
 
-        // Convierte la distancia del planeta a logaritmo.
+        // Calcula el logaritmo de la distancia del planeta.
         const logDist = Math.log10(distanciaKm);
 
-        // Normaliza la distancia en escala logarítmica.
+        // Normaliza la distancia usando escala logarítmica.
         const normal = (logDist - logMin) / (logMax - logMin);
 
-        // Devuelve el radio visual.
+        // Devuelve el radio visual de la órbita.
         return minRadio + normal * (maxRadio - minRadio);
     }
 
-    // Calcula el tamaño visual del planeta.
+    // Función que calcula el tamaño visual de cada planeta.
     function calcularTamanoPlaneta(diametroKm) {
 
-        // Diámetro de la Tierra como referencia.
+        // Diámetro de la Tierra usado como referencia visual.
         const tierraDiametro = 12742;
 
-        // Usa raíz cuadrada para que los tamaños no sean exagerados.
+        // Calcula el tamaño visual usando raíz cuadrada para evitar tamaños exagerados.
         const size = Math.sqrt(diametroKm / tierraDiametro) * 18;
 
-        // Limita el tamaño mínimo y máximo.
+        // Limita el tamaño mínimo a 8 px y el máximo a 42 px.
         return Math.max(8, Math.min(size, 42));
     }
 
-    // Devuelve el estilo visual aproximado de cada planeta.
+    // Función que devuelve el estilo visual de cada planeta.
     function obtenerEstiloPlaneta(nombre) {
 
-        // Diccionario de estilos visuales.
+        // Diccionario de estilos visuales para cada planeta.
         const estilos = {
-            "Mercurio": "radial-gradient(circle at 35% 30%, #d6d0c8, #8f8f8f 45%, #4f4f4f 100%)",
 
-            "Venus": "radial-gradient(circle at 35% 30%, #fff0a8, #d9b36c 50%, #9c6b2f 100%)",
+            // Estilo gris para Mercurio.
+            "Mercurio":
+                "radial-gradient(circle at 35% 30%, #d6d0c8, #8f8f8f 45%, #4f4f4f 100%)",
 
-            "Tierra": "radial-gradient(circle at 35% 30%, #b7f3ff, #4aa3df 45%, #1565a9 100%)",
+            // Estilo amarillo/naranja para Venus.
+            "Venus":
+                "radial-gradient(circle at 35% 30%, #fff0a8, #d9b36c 50%, #9c6b2f 100%)",
 
-            "Marte": "radial-gradient(circle at 35% 30%, #ffb188, #c75132 50%, #732819 100%)",
+            // Estilo azul para Tierra.
+            "Tierra":
+                "radial-gradient(circle at 35% 30%, #b7f3ff, #4aa3df 45%, #1565a9 100%)",
 
-            "Júpiter": "repeating-linear-gradient(0deg, #d8a56f 0px, #d8a56f 8px, #f2d6a5 8px, #f2d6a5 16px, #b8754f 16px, #b8754f 24px)",
+            // Estilo rojizo para Marte.
+            "Marte":
+                "radial-gradient(circle at 35% 30%, #ffb188, #c75132 50%, #732819 100%)",
 
-            "Saturno": "radial-gradient(circle at 35% 30%, #fff3b0, #e3c878 50%, #a78335 100%)",
+            // Estilo con bandas para Júpiter.
+            "Júpiter":
+                "repeating-linear-gradient(90deg, #d8a56f 0px, #d8a56f 7px, #f2d6a5 7px, #f2d6a5 14px, #b8754f 14px, #b8754f 21px)",
 
-            "Urano": "radial-gradient(circle at 35% 30%, #d6ffff, #7ad7df 50%, #3e9faa 100%)",
+            // Estilo amarillo para Saturno.
+            "Saturno":
+                "radial-gradient(circle at 35% 30%, #fff3b0, #e3c878 50%, #a78335 100%)",
 
-            "Neptuno": "radial-gradient(circle at 35% 30%, #9ab4ff, #3154d4 50%, #14246e 100%)"
+            // Estilo celeste para Urano.
+            "Urano":
+                "radial-gradient(circle at 35% 30%, #d6ffff, #7ad7df 50%, #3e9faa 100%)",
+
+            // Estilo azul intenso para Neptuno.
+            "Neptuno":
+                "radial-gradient(circle at 35% 30%, #9ab4ff, #3154d4 50%, #14246e 100%)"
         };
 
-        // Devuelve el estilo del planeta o usa Tierra por defecto.
+        // Devuelve el estilo correspondiente o usa Tierra si no encuentra el planeta.
         return estilos[nombre] || estilos["Tierra"];
     }
 
-    // Muestra la tabla con datos físicos.
+    // Función que muestra la tabla de datos físicos.
     function mostrarTabla(planetas) {
 
-        // Limpia datos anteriores.
+        // Limpia la tabla anterior.
         tablaResultados.innerHTML = "";
 
-        // Recorre los planetas recibidos.
+        // Recorre cada planeta recibido.
         planetas.forEach(planeta => {
 
-            // Crea una fila de tabla.
+            // Crea una nueva fila de tabla.
             const fila = document.createElement("tr");
 
-            // Inserta las celdas con datos.
+            // Inserta las celdas con los datos del planeta.
             fila.innerHTML = `
                 <td>${planeta.nombre}</td>
                 <td>${formatearNumero(planeta.distancia_sol_km)} km</td>
@@ -491,40 +612,50 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Muestra la explicación física.
+    // Función que muestra la explicación del procedimiento.
     function mostrarExplicacion(pasos) {
 
-        // Limpia explicación anterior.
+        // Limpia la explicación anterior.
         listaExplicacion.innerHTML = "";
 
-        // Recorre cada paso.
+        // Recorre cada paso recibido desde Flask.
         pasos.forEach(paso => {
 
             // Crea un elemento de lista.
             const li = document.createElement("li");
 
-            // Escribe el paso.
+            // Escribe el texto del paso.
             li.textContent = paso;
 
-            // Agrega el paso a la lista.
+            // Agrega el paso a la lista ordenada.
             listaExplicacion.appendChild(li);
         });
     }
 
-    // Muestra errores en pantalla.
+    // Función que muestra un error en pantalla.
     function mostrarError(mensaje) {
+
+        // Coloca el mensaje dentro de la caja de error.
         errorBox.textContent = mensaje;
+
+        // Quita la clase hidden para hacer visible el error.
         errorBox.classList.remove("hidden");
     }
 
-    // Oculta errores.
+    // Función que oculta el error.
     function ocultarError() {
+
+        // Borra el texto del error.
         errorBox.textContent = "";
+
+        // Agrega la clase hidden para ocultar la caja.
         errorBox.classList.add("hidden");
     }
 
-    // Da formato a números grandes.
+    // Función que da formato a números grandes.
     function formatearNumero(numero) {
+
+        // Convierte el número al formato usado en Nicaragua y limita decimales.
         return Number(numero).toLocaleString("es-NI", {
             maximumFractionDigits: 2
         });
