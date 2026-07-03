@@ -1,355 +1,260 @@
+# Importa Flask para crear la página web.
 from flask import Flask, render_template, request, jsonify
-import math
-import re
 
+# Importa math para usar fórmulas matemáticas como raíz cuadrada y pi.
+import math
+
+
+# Crea la aplicación principal de Flask.
 app = Flask(__name__)
 
-# 1 Unidad Astronómica en kilómetros
-UA_EN_KM = 149_597_870.7
 
-# Datos aproximados de cuerpos celestes
-CUERPOS_CELESTES = {
+# Constante de gravitación universal.
+# Se usa en la fórmula de velocidad orbital: v = √(GM / r)
+G = 6.67430e-11
+
+
+# Masa aproximada del Sol en kilogramos.
+# Se usa porque los planetas van a orbitar alrededor del Sol.
+MASA_SOL_KG = 1.9885e30
+
+
+# Diccionario con datos aproximados de los planetas.
+# Cada planeta tiene radio, diámetro, distancia al Sol, período orbital y período de rotación.
+PLANETAS = {
     "Mercurio": {
         "radio_km": 2439.7,
         "diametro_km": 4879.4,
-        "color": "#8f8f8f",
-        "distancia_tierra_km": 91_700_000,
-        "distancia_sol_km": 57_900_000
+        "distancia_sol_km": 57_900_000,
+        "periodo_orbital_dias": 87.97,
+        "periodo_rotacion_horas": 1407.6,
+        "color": "#9a9a9a"
     },
+
     "Venus": {
         "radio_km": 6051.8,
         "diametro_km": 12103.6,
-        "color": "#d9b36c",
-        "distancia_tierra_km": 41_400_000,
-        "distancia_sol_km": 108_200_000
+        "distancia_sol_km": 108_200_000,
+        "periodo_orbital_dias": 224.7,
+        "periodo_rotacion_horas": -5832.5,
+        "color": "#d9b36c"
     },
+
     "Tierra": {
         "radio_km": 6371,
         "diametro_km": 12742,
-        "color": "#4aa3df",
-        "distancia_tierra_km": 0,
-        "distancia_sol_km": 149_600_000
+        "distancia_sol_km": 149_600_000,
+        "periodo_orbital_dias": 365.25,
+        "periodo_rotacion_horas": 23.93,
+        "color": "#4aa3df"
     },
+
     "Marte": {
         "radio_km": 3389.5,
         "diametro_km": 6779,
-        "color": "#c75132",
-        "distancia_tierra_km": 78_300_000,
-        "distancia_sol_km": 227_900_000
+        "distancia_sol_km": 227_900_000,
+        "periodo_orbital_dias": 687,
+        "periodo_rotacion_horas": 24.6,
+        "color": "#c75132"
     },
+
     "Júpiter": {
         "radio_km": 69911,
         "diametro_km": 139822,
-        "color": "#d8a56f",
-        "distancia_tierra_km": 628_700_000,
-        "distancia_sol_km": 778_500_000
+        "distancia_sol_km": 778_500_000,
+        "periodo_orbital_dias": 4332.59,
+        "periodo_rotacion_horas": 9.93,
+        "color": "#d8a56f"
     },
+
     "Saturno": {
         "radio_km": 58232,
         "diametro_km": 116464,
-        "color": "#e3c878",
-        "distancia_tierra_km": 1_277_400_000,
-        "distancia_sol_km": 1_433_500_000
+        "distancia_sol_km": 1_433_500_000,
+        "periodo_orbital_dias": 10759,
+        "periodo_rotacion_horas": 10.7,
+        "color": "#e3c878"
     },
+
     "Urano": {
         "radio_km": 25362,
         "diametro_km": 50724,
-        "color": "#7ad7df",
-        "distancia_tierra_km": 2_721_400_000,
-        "distancia_sol_km": 2_872_500_000
+        "distancia_sol_km": 2_872_500_000,
+        "periodo_orbital_dias": 30687,
+        "periodo_rotacion_horas": -17.2,
+        "color": "#7ad7df"
     },
+
     "Neptuno": {
         "radio_km": 24622,
         "diametro_km": 49244,
-        "color": "#3154d4",
-        "distancia_tierra_km": 4_350_400_000,
-        "distancia_sol_km": 4_495_100_000
-    },
-    "Luna": {
-        "radio_km": 1737.4,
-        "diametro_km": 3474.8,
-        "color": "#d9d9d9",
-        "distancia_tierra_km": 384_400,
-        "distancia_sol_km": 149_600_000
-    },
-    "Sol": {
-        "radio_km": 696340,
-        "diametro_km": 1_392_680,
-        "color": "#ffcc33",
-        "distancia_tierra_km": 149_600_000,
-        "distancia_sol_km": 0
+        "distancia_sol_km": 4_495_100_000,
+        "periodo_orbital_dias": 60190,
+        "periodo_rotacion_horas": 16.1,
+        "color": "#3154d4"
     }
 }
 
 
-def convertir_a_km(distancia, unidad):
-    """Convierte la distancia ingresada a kilómetros."""
-    unidad = unidad.lower().strip()
-
-    if unidad == "km":
-        return distancia
-    elif unidad == "m":
-        return distancia / 1000
-    elif unidad == "ua":
-        return distancia * UA_EN_KM
-    else:
-        raise ValueError("Unidad inválida. Use km, m o UA.")
-
-
-def limpiar_numero(texto):
-    """Permite usar números como 384400, 384,400 o 1.5."""
-    texto = str(texto).strip()
-
-    if "," in texto and len(texto.split(",")[-1]) == 3:
-        texto = texto.replace(",", "")
-    else:
-        texto = texto.replace(",", ".")
-
-    return float(texto)
-
-
-def extraer_distancia_del_enunciado(enunciado):
-    """Intenta detectar una distancia escrita en el enunciado."""
-    patron = r"(\d+(?:[.,]\d+)*)\s*(km|kilómetros|kilometros|m|metros|ua|au)\b"
-    coincidencia = re.search(patron, enunciado.lower())
-
-    if not coincidencia:
-        return None
-
-    numero = limpiar_numero(coincidencia.group(1))
-    unidad = coincidencia.group(2)
-
-    if unidad in ["kilómetros", "kilometros"]:
-        unidad = "km"
-    elif unidad == "metros":
-        unidad = "m"
-    elif unidad == "au":
-        unidad = "ua"
-
-    return numero, unidad
-
-
-def calcular_diametro_angular(radio_km, distancia_km):
+def calcular_velocidad_orbital(distancia_sol_km):
     """
-    Fórmula principal:
-    θ = 2 * arctan(R / d)
+    Calcula la velocidad orbital aproximada de un planeta alrededor del Sol.
 
-    R = radio del cuerpo celeste
-    d = distancia entre el observador y el cuerpo celeste
+    Fórmula:
+    v = √(GM / r)
+
+    Donde:
+    v = velocidad orbital
+    G = constante gravitacional
+    M = masa del Sol
+    r = distancia del planeta al Sol en metros
     """
-    theta_radianes = 2 * math.atan(radio_km / distancia_km)
-    theta_grados = theta_radianes * 180 / math.pi
 
-    return theta_radianes, theta_grados
+    # Convierte la distancia de kilómetros a metros.
+    distancia_m = distancia_sol_km * 1000
+
+    # Aplica la fórmula v = √(GM / r).
+    velocidad_ms = math.sqrt((G * MASA_SOL_KG) / distancia_m)
+
+    # Convierte la velocidad de m/s a km/s.
+    velocidad_kms = velocidad_ms / 1000
+
+    # Devuelve la velocidad en ambas unidades.
+    return velocidad_ms, velocidad_kms
+
+
+def calcular_periodo_orbital_teorico(distancia_sol_km):
+    """
+    Calcula el período orbital teórico usando la fórmula:
+
+    T = 2π √(r³ / GM)
+
+    Donde:
+    T = período orbital
+    r = distancia del planeta al Sol
+    G = constante gravitacional
+    M = masa del Sol
+    """
+
+    # Convierte la distancia de kilómetros a metros.
+    distancia_m = distancia_sol_km * 1000
+
+    # Aplica la fórmula del período orbital.
+    periodo_segundos = 2 * math.pi * math.sqrt((distancia_m ** 3) / (G * MASA_SOL_KG))
+
+    # Convierte el período de segundos a días.
+    periodo_dias = periodo_segundos / 86400
+
+    # Devuelve el período en segundos y días.
+    return periodo_segundos, periodo_dias
 
 
 @app.route("/")
 def index():
-    """Ruta principal."""
-    return render_template("index.html", cuerpos=CUERPOS_CELESTES.keys())
+    """
+    Ruta principal del proyecto.
+    Carga el archivo index.html y le manda la lista de planetas.
+    """
+
+    # render_template busca index.html dentro de la carpeta templates.
+    # planetas=PLANETAS.keys() envía los nombres de los planetas al HTML.
+    return render_template("index.html", planetas=PLANETAS.keys())
 
 
 @app.route("/calcular", methods=["POST"])
 def calcular():
-    """Recibe datos desde JavaScript y devuelve el cálculo en JSON."""
+    """
+    Ruta que recibe los planetas seleccionados desde JavaScript.
+    Calcula velocidad orbital, período orbital y devuelve los datos en JSON.
+    """
+
     try:
+        # Obtiene los datos enviados desde JavaScript en formato JSON.
         datos = request.get_json()
 
-        enunciado = datos.get("enunciado", "")
-        planeta = datos.get("planeta", "")
-        comparado_con = datos.get("comparado_con", "")
-        tipo_distancia = datos.get("tipo_distancia", "")
-        distancia_usuario = datos.get("distancia", "")
-        unidad = datos.get("unidad", "km").lower().strip()
+        # Obtiene la lista de planetas seleccionados.
+        planetas_seleccionados = datos.get("planetas", [])
 
-        if not planeta or planeta not in CUERPOS_CELESTES:
+        # Valida que el usuario haya seleccionado al menos un planeta.
+        if not planetas_seleccionados:
             return jsonify({
                 "ok": False,
-                "error": "Debe seleccionar un planeta o cuerpo celeste válido."
+                "error": "Debe seleccionar al menos un planeta para simular."
             }), 400
 
-        if not comparado_con or comparado_con not in CUERPOS_CELESTES:
-            return jsonify({
-                "ok": False,
-                "error": "Debe seleccionar un cuerpo celeste válido para comparar."
-            }), 400
+        # Lista donde se guardarán los resultados calculados.
+        resultados = []
 
-        if unidad not in ["km", "m", "ua"]:
-            return jsonify({
-                "ok": False,
-                "error": "Unidad inválida. Use km, m o UA."
-            }), 400
+        # Recorre cada planeta seleccionado.
+        for nombre in planetas_seleccionados:
 
-        cuerpo = CUERPOS_CELESTES[planeta]
-        cuerpo_comparado = CUERPOS_CELESTES[comparado_con]
+            # Valida que el planeta exista en el diccionario PLANETAS.
+            if nombre not in PLANETAS:
+                return jsonify({
+                    "ok": False,
+                    "error": f"El planeta {nombre} no existe en la base de datos."
+                }), 400
 
-        radio_km = cuerpo["radio_km"]
-        radio_comparado_km = cuerpo_comparado["radio_km"]
+            # Obtiene los datos del planeta seleccionado.
+            planeta = PLANETAS[nombre]
 
-        # Selección de distancia
-        if tipo_distancia == "tierra":
-            distancia_km = cuerpo["distancia_tierra_km"]
-            descripcion_distancia = "distancia aproximada desde la Tierra"
-
-        elif tipo_distancia == "sol":
-            distancia_km = cuerpo["distancia_sol_km"]
-            descripcion_distancia = "distancia media aproximada desde el Sol"
-
-        elif tipo_distancia == "luna":
-            distancia_km = 384_400
-            descripcion_distancia = "distancia promedio de la Luna a la Tierra"
-
-        elif tipo_distancia == "personalizada":
-            if distancia_usuario:
-                distancia_usuario = limpiar_numero(distancia_usuario)
-            else:
-                distancia_extraida = extraer_distancia_del_enunciado(enunciado)
-
-                if not distancia_extraida:
-                    return jsonify({
-                        "ok": False,
-                        "error": "Debe escribir una distancia personalizada o incluirla en el enunciado."
-                    }), 400
-
-                distancia_usuario, unidad = distancia_extraida
-
-            distancia_km = convertir_a_km(float(distancia_usuario), unidad)
-            descripcion_distancia = f"distancia personalizada ingresada en {unidad}"
-
-        else:
-            return jsonify({
-                "ok": False,
-                "error": "Debe seleccionar un tipo de distancia válido."
-            }), 400
-
-        if distancia_km <= 0:
-            return jsonify({
-                "ok": False,
-                "error": "La distancia debe ser mayor que 0."
-            }), 400
-
-        # Cálculo del cuerpo observado
-        theta_radianes, theta_grados = calcular_diametro_angular(radio_km, distancia_km)
-
-        # Cálculo del cuerpo de comparación usando la misma distancia
-        theta_comparado_radianes, theta_comparado_grados = calcular_diametro_angular(
-            radio_comparado_km,
-            distancia_km
-        )
-
-        relacion_comparacion = theta_grados / theta_comparado_grados
-
-        if relacion_comparacion > 1:
-            comparacion_texto = (
-                f"{planeta} se vería aproximadamente {relacion_comparacion:.2f} veces "
-                f"más grande que {comparado_con} a la misma distancia."
-            )
-        elif relacion_comparacion < 1:
-            comparacion_texto = (
-                f"{planeta} se vería aproximadamente {1 / relacion_comparacion:.2f} veces "
-                f"más pequeño que {comparado_con} a la misma distancia."
-            )
-        else:
-            comparacion_texto = (
-                f"{planeta} y {comparado_con} se verían casi del mismo tamaño aparente "
-                f"a esa distancia."
+            # Calcula la velocidad orbital del planeta.
+            velocidad_ms, velocidad_kms = calcular_velocidad_orbital(
+                planeta["distancia_sol_km"]
             )
 
-        advertencias = []
-
-        if theta_grados > 10:
-            advertencias.append(
-                "El resultado es muy grande. El cuerpo estaría extremadamente cerca "
-                "y ocuparía una gran parte del cielo."
+            # Calcula el período orbital teórico.
+            periodo_teorico_segundos, periodo_teorico_dias = calcular_periodo_orbital_teorico(
+                planeta["distancia_sol_km"]
             )
 
-        if distancia_km <= radio_km:
-            advertencias.append(
-                "La distancia ingresada es menor o igual al radio del cuerpo observado. "
-                "Físicamente, el observador estaría dentro o sobre ese cuerpo celeste."
-            )
+            # Calcula cuántos grados avanza el planeta por día.
+            velocidad_angular_grados_dia = 360 / planeta["periodo_orbital_dias"]
 
-        # Escalado visual: el objeto comparado se deja como referencia de 130 px
-        referencia_px = 130
-        planeta_px_real = referencia_px * relacion_comparacion
+            # Guarda los datos originales y calculados del planeta.
+            resultados.append({
+                "nombre": nombre,
+                "radio_km": planeta["radio_km"],
+                "diametro_km": planeta["diametro_km"],
+                "distancia_sol_km": planeta["distancia_sol_km"],
+                "periodo_orbital_dias": planeta["periodo_orbital_dias"],
+                "periodo_rotacion_horas": planeta["periodo_rotacion_horas"],
+                "velocidad_orbital_ms": velocidad_ms,
+                "velocidad_orbital_kms": velocidad_kms,
+                "periodo_teorico_dias": periodo_teorico_dias,
+                "velocidad_angular_grados_dia": velocidad_angular_grados_dia,
+                "color": planeta["color"]
+            })
 
-        planeta_px = max(18, min(planeta_px_real, 420))
-        comparado_px = referencia_px
-
-        if planeta_px_real < 18:
-            advertencias.append(
-                "El cuerpo observado se vería muy pequeño, por eso fue aumentado "
-                "para que sea visible en pantalla."
-            )
-
-        if planeta_px_real > 420:
-            advertencias.append(
-                "El cuerpo observado se vería demasiado grande, por eso fue limitado "
-                "visualmente en pantalla."
-            )
-
-        pasos = [
-            f"Se seleccionó el cuerpo observado: {planeta}.",
-            f"Se seleccionó el cuerpo de comparación: {comparado_con}.",
-            f"El radio de {planeta} es R = {radio_km:,.2f} km.",
-            f"El radio de {comparado_con} es R = {radio_comparado_km:,.2f} km.",
-            f"La distancia usada fue d = {distancia_km:,.2f} km, correspondiente a {descripcion_distancia}.",
-            "Para el cuerpo observado se aplicó la fórmula: θ = 2 × arctan(R / d).",
-            f"Sustituyendo valores para {planeta}: θ = 2 × arctan({radio_km:,.2f} / {distancia_km:,.2f}).",
-            f"El diámetro angular de {planeta} fue θ = {theta_radianes:.8f} rad = {theta_grados:.6f}°.",
-            f"También se calculó el diámetro angular de {comparado_con} usando la misma distancia.",
-            f"El diámetro angular de {comparado_con} fue θ = {theta_comparado_radianes:.8f} rad = {theta_comparado_grados:.6f}°.",
-            "Finalmente, se dividió el tamaño angular del cuerpo observado entre el tamaño angular del cuerpo de comparación."
+        # Explicación que se mostrará en la página.
+        explicacion = [
+            "1. Se seleccionan uno o más planetas del sistema solar.",
+            "2. Cada planeta tiene una distancia media aproximada al Sol.",
+            "3. Para representar la traslación, se usa el período orbital del planeta.",
+            "4. La posición del planeta cambia con el tiempo usando un ángulo orbital.",
+            "5. La velocidad orbital se calcula con la fórmula v = √(GM / r).",
+            "6. G es la constante gravitacional, M es la masa del Sol y r es la distancia al Sol.",
+            "7. La rotación del planeta sobre su propio eje se representa usando su período de rotación.",
+            "8. La simulación no está a escala real exacta, porque las distancias reales son demasiado grandes para una pantalla."
         ]
 
-        interpretacion = (
-            f"El diámetro angular indica qué tan grande se vería un cuerpo celeste en el cielo. "
-            f"En este caso, {planeta} tendría un tamaño aparente de {theta_grados:.6f}°. "
-            f"Comparado con {comparado_con}, el resultado indica que {comparacion_texto.lower()}"
-        )
-
+        # Devuelve los resultados a JavaScript.
         return jsonify({
             "ok": True,
-            "planeta": planeta,
-            "comparado_con": comparado_con,
-
-            "radio_km": radio_km,
-            "diametro_km": cuerpo["diametro_km"],
-
-            "radio_comparado_km": radio_comparado_km,
-            "diametro_comparado_km": cuerpo_comparado["diametro_km"],
-
-            "distancia_km": distancia_km,
-
-            "theta_radianes": theta_radianes,
-            "theta_grados": theta_grados,
-
-            "theta_comparado_radianes": theta_comparado_radianes,
-            "theta_comparado_grados": theta_comparado_grados,
-
-            "relacion_comparacion": relacion_comparacion,
-            "comparacion_texto": comparacion_texto,
-
-            "pasos": pasos,
-            "interpretacion": interpretacion,
-            "advertencias": advertencias,
-
-            "planeta_px": planeta_px,
-            "comparado_px": comparado_px
+            "planetas": resultados,
+            "explicacion": explicacion
         })
 
-    except ValueError:
-        return jsonify({
-            "ok": False,
-            "error": "Revise que la distancia esté escrita correctamente."
-        }), 400
-
     except Exception:
+        # Si ocurre cualquier error inesperado, devuelve este mensaje.
         return jsonify({
             "ok": False,
-            "error": "Ocurrió un error inesperado al calcular."
+            "error": "Ocurrió un error inesperado al calcular la simulación."
         }), 500
 
 
+# Esta condición permite ejecutar Flask directamente con python app.py.
 if __name__ == "__main__":
+
+    # Inicia el servidor local en http://localhost:5000
     app.run(host="localhost", port=5000, debug=False, use_reloader=False)

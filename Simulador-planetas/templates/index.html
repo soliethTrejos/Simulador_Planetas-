@@ -1,205 +1,196 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <!-- Permite usar tildes, ñ y caracteres especiales -->
     <meta charset="UTF-8">
 
+    <!-- Hace que la página se adapte a celular y computadora -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Simulador de Tamaño Aparente de Planetas</title>
+    <!-- Título que aparece en la pestaña del navegador -->
+    <title>Simulador de Rotación y Traslación Planetaria</title>
 
-    <!-- El ?v=30 ayuda a que el navegador no use una versión vieja del CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=30">
+    <!-- Conecta el archivo CSS con el HTML -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=300">
 </head>
+
 <body>
 
-    <div class="bg-decor">
-        <div class="orbit orbit-a"></div>
-        <div class="orbit orbit-b"></div>
-
-        <div class="tiny-star star-1"></div>
-        <div class="tiny-star star-2"></div>
-        <div class="tiny-star star-3"></div>
-        <div class="tiny-star star-4"></div>
-        <div class="tiny-star star-5"></div>
+    <!-- Fondo decorativo con estrellas -->
+    <div class="background-decor">
+        <div class="star star-1"></div>
+        <div class="star star-2"></div>
+        <div class="star star-3"></div>
+        <div class="star star-4"></div>
+        <div class="star star-5"></div>
     </div>
 
+    <!-- Encabezado principal -->
     <header class="main-header">
         <span class="badge">Física aplicada · Astronomía</span>
 
-        <h1>Simulador de Tamaño Aparente de Planetas</h1>
+        <h1>Simulador de Rotación y Traslación Planetaria</h1>
 
         <p>
-            Escribe un ejercicio, selecciona un cuerpo celeste y visualiza cómo cambiaría
-            su tamaño aparente desde una distancia determinada.
+            Simula uno o más planetas orbitando alrededor del Sol. El sistema muestra
+            la traslación orbital, la rotación propia, la velocidad orbital y el período aproximado.
         </p>
     </header>
 
+    <!-- Contenedor principal de toda la página -->
     <main class="container">
 
-        <section class="card form-card">
-            <h2>Datos del ejercicio</h2>
+        <!-- Tarjeta de configuración -->
+        <section class="card">
+            <h2>Configuración de la simulación</h2>
 
+            <!-- Formulario principal -->
             <form id="formulario">
 
-                <label for="enunciado">Enunciado del ejercicio</label>
+                <!-- Área para escribir el ejercicio -->
+                <label for="enunciado">Enunciado o descripción del ejercicio</label>
                 <textarea
                     id="enunciado"
-                    name="enunciado"
-                    rows="4"
-                    placeholder="Ejemplo: ¿Cómo se vería Saturno comparado con Júpiter a 384,400 km?"
+                    rows="3"
+                    placeholder="Ejemplo: Simular la órbita de la Tierra, Marte y Júpiter alrededor del Sol."
                 ></textarea>
 
-                <div class="form-grid">
+                <h3>Seleccione uno o más planetas</h3>
 
+                <!-- Aquí Flask genera automáticamente los planetas con un ciclo -->
+                <div class="planet-grid">
+                    {% for planeta in planetas %}
+                        <label class="planet-option">
+
+                            <!-- Checkbox para seleccionar planetas -->
+                            <input
+                                type="checkbox"
+                                name="planetas"
+                                value="{{ planeta }}"
+                                {% if planeta == "Tierra" or planeta == "Marte" %}checked{% endif %}
+                            >
+
+                            <!-- Nombre visible del planeta -->
+                            <span>{{ planeta }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+
+                <!-- Controles de simulación -->
+                <div class="control-grid">
+
+                    <!-- Control de velocidad -->
                     <div class="form-group">
-                        <label for="planeta">Cuerpo observado</label>
-                        <select id="planeta" name="planeta" required>
-                            <option value="">Seleccione un cuerpo</option>
+                        <label for="velocidadSimulacion">
+                            Velocidad de simulación:
+                            <span id="speedLabel">50 días/segundo</span>
+                        </label>
 
-                            {% for cuerpo in cuerpos %}
-                                <option value="{{ cuerpo }}">{{ cuerpo }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="comparado_con">Comparar con</label>
-                        <select id="comparado_con" name="comparado_con" required>
-                            <option value="">Seleccione cuerpo de comparación</option>
-
-                            {% for cuerpo in cuerpos %}
-                                <option value="{{ cuerpo }}">{{ cuerpo }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="tipo_distancia">Distancia a usar</label>
-                        <select id="tipo_distancia" name="tipo_distancia" required>
-                            <option value="">Seleccione una opción</option>
-                            <option value="tierra">Distancia aproximada desde la Tierra</option>
-                            <option value="sol">Distancia media desde el Sol</option>
-                            <option value="luna">Distancia de la Luna: 384,400 km</option>
-                            <option value="personalizada">Distancia personalizada</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="distancia">Distancia personalizada</label>
                         <input
-                            type="text"
-                            id="distancia"
-                            name="distancia"
-                            placeholder="Ejemplo: 384400"
+                            type="range"
+                            id="velocidadSimulacion"
+                            min="1"
+                            max="2000"
+                            value="50"
                         >
                     </div>
 
+                    <!-- Tipo de escala visual -->
                     <div class="form-group">
-                        <label for="unidad">Unidad</label>
-                        <select id="unidad" name="unidad">
-                            <option value="km">km</option>
-                            <option value="m">m</option>
-                            <option value="ua">UA</option>
+                        <label for="escalaVisual">Escala visual</label>
+                        <select id="escalaVisual">
+                            <option value="logaritmica" selected>Logarítmica, más clara</option>
+                            <option value="compacta">Compacta</option>
                         </select>
                     </div>
 
                 </div>
 
+                <!-- Botón que inicia el cálculo -->
                 <button type="submit" class="btn">
-                    Calcular y visualizar
+                    Calcular y simular
                 </button>
 
+                <!-- Nota explicativa -->
                 <p class="hint">
-                    Fórmula usada: θ = 2 × arctan(R / d), donde R es el radio del cuerpo
-                    celeste y d es la distancia entre el observador y el cuerpo.
+                    Nota técnica: la traslación es el movimiento del planeta alrededor del Sol.
+                    La rotación es el giro del planeta sobre su propio eje.
                 </p>
+
             </form>
 
+            <!-- Caja donde se muestran errores -->
             <div id="error" class="error hidden"></div>
         </section>
 
-        <section class="card visual-card">
-            <h2>Visualización comparativa</h2>
+        <!-- Tarjeta donde se muestra la simulación -->
+        <section class="card simulator-card">
 
-            <p class="section-text">
-                El cuerpo de comparación se mantiene como referencia visual. El cuerpo observado
-                cambia de tamaño según el cálculo angular.
-            </p>
-
-            <div class="space-view">
-
-                <div class="object-zone">
-                    <div id="referenciaVisual" class="planet-display"></div>
-                    <span id="referenciaLabel" class="visual-tag">Cuerpo de comparación</span>
+            <!-- Encabezado de la simulación -->
+            <div class="sim-header">
+                <div>
+                    <h2>Simulación orbital</h2>
+                    <p>
+                        El Sol está en el centro y los planetas seleccionados orbitan alrededor de él.
+                    </p>
                 </div>
 
-                <div class="object-zone">
-                    <div id="planetVisual" class="planet-display planet-placeholder"></div>
-                    <span id="planetLabel" class="visual-tag">Cuerpo observado</span>
+                <!-- Botones para controlar la animación -->
+                <div class="button-row">
+                    <button id="btnPausar" class="small-btn" type="button">Pausar</button>
+                    <button id="btnReanudar" class="small-btn" type="button">Reanudar</button>
+                    <button id="btnReiniciar" class="small-btn secondary" type="button">Reiniciar</button>
                 </div>
-
             </div>
 
-            <p id="visualNote" class="visual-note">
-                La visualización aparecerá después de calcular.
+            <!-- Área visual del sistema solar -->
+            <div id="solarSystem" class="solar-system">
+
+                <!-- Sol fijo en el centro -->
+                <div class="sun">
+                    <span>Sol</span>
+                </div>
+            </div>
+
+            <!-- Información de estado de la simulación -->
+            <p id="simulationInfo" class="simulation-info">
+                Seleccione planetas y presione “Calcular y simular”.
             </p>
         </section>
 
-        <section id="resultados" class="results-grid hidden">
+        <!-- Tabla de resultados calculados -->
+        <section id="resultados" class="card hidden">
+            <h2>Datos calculados</h2>
 
-            <div class="card result-card">
-                <h3>Cuerpo observado</h3>
-                <p id="resPlaneta">---</p>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Planeta</th>
+                            <th>Distancia al Sol</th>
+                            <th>Período orbital</th>
+                            <th>Velocidad orbital</th>
+                            <th>Rotación propia</th>
+                        </tr>
+                    </thead>
+
+                    <!-- JavaScript insertará aquí las filas -->
+                    <tbody id="tablaResultados"></tbody>
+                </table>
             </div>
-
-            <div class="card result-card">
-                <h3>Comparado con</h3>
-                <p id="resComparado">---</p>
-            </div>
-
-            <div class="card result-card">
-                <h3>Radio observado</h3>
-                <p id="resRadio">---</p>
-            </div>
-
-            <div class="card result-card">
-                <h3>Distancia usada</h3>
-                <p id="resDistancia">---</p>
-            </div>
-
-            <div class="card result-card">
-                <h3>Diámetro angular observado</h3>
-                <p id="resAngular">---</p>
-            </div>
-
-            <div class="card result-card">
-                <h3>Diámetro angular comparación</h3>
-                <p id="resAngularComparado">---</p>
-            </div>
-
         </section>
 
-        <section id="comparacion" class="card hidden">
-            <h2>Resultado de la comparación</h2>
-            <p id="resComparacion">---</p>
-        </section>
-
+        <!-- Explicación del procedimiento físico -->
         <section id="explicacion" class="card hidden">
-            <h2>Procedimiento paso a paso</h2>
+            <h2>Procedimiento físico</h2>
 
-            <ol id="listaPasos"></ol>
-
-            <h3>Interpretación</h3>
-            <p id="resInterpretacion">---</p>
-        </section>
-
-        <section id="advertencias" class="card warning-card hidden">
-            <h2>Advertencias</h2>
-            <ul id="listaAdvertencias"></ul>
+            <!-- JavaScript insertará aquí los pasos -->
+            <ol id="listaExplicacion"></ol>
         </section>
 
     </main>
 
-    <script src="{{ url_for('static', filename='script.js') }}?v=30"></script>
+    <!-- Conecta el archivo JavaScript con el HTML -->
+    <script src="{{ url_for('static', filename='script.js') }}?v=300"></script>
 </body>
-</html>             
+</html>
