@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Simulador de Tamaño Aparente de Planetas</title>
+
+    <!-- El ?v=30 ayuda a que el navegador no use una versión vieja del CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=30">
+</head>
+<body>
+
+    <div class="bg-decor">
+        <div class="orbit orbit-a"></div>
+        <div class="orbit orbit-b"></div>
+
+        <div class="tiny-star star-1"></div>
+        <div class="tiny-star star-2"></div>
+        <div class="tiny-star star-3"></div>
+        <div class="tiny-star star-4"></div>
+        <div class="tiny-star star-5"></div>
+    </div>
+
+    <header class="main-header">
+        <span class="badge">Física aplicada · Astronomía</span>
+
+        <h1>Simulador de Tamaño Aparente de Planetas</h1>
+
+        <p>
+            Escribe un ejercicio, selecciona un cuerpo celeste y visualiza cómo cambiaría
+            su tamaño aparente desde una distancia determinada.
+        </p>
+    </header>
+
+    <main class="container">
+
+        <section class="card form-card">
+            <h2>Datos del ejercicio</h2>
+
+            <form id="formulario">
+
+                <label for="enunciado">Enunciado del ejercicio</label>
+                <textarea
+                    id="enunciado"
+                    name="enunciado"
+                    rows="4"
+                    placeholder="Ejemplo: ¿Cómo se vería Saturno comparado con Júpiter a 384,400 km?"
+                ></textarea>
+
+                <div class="form-grid">
+
+                    <div class="form-group">
+                        <label for="planeta">Cuerpo observado</label>
+                        <select id="planeta" name="planeta" required>
+                            <option value="">Seleccione un cuerpo</option>
+
+                            {% for cuerpo in cuerpos %}
+                                <option value="{{ cuerpo }}">{{ cuerpo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="comparado_con">Comparar con</label>
+                        <select id="comparado_con" name="comparado_con" required>
+                            <option value="">Seleccione cuerpo de comparación</option>
+
+                            {% for cuerpo in cuerpos %}
+                                <option value="{{ cuerpo }}">{{ cuerpo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tipo_distancia">Distancia a usar</label>
+                        <select id="tipo_distancia" name="tipo_distancia" required>
+                            <option value="">Seleccione una opción</option>
+                            <option value="tierra">Distancia aproximada desde la Tierra</option>
+                            <option value="sol">Distancia media desde el Sol</option>
+                            <option value="luna">Distancia de la Luna: 384,400 km</option>
+                            <option value="personalizada">Distancia personalizada</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="distancia">Distancia personalizada</label>
+                        <input
+                            type="text"
+                            id="distancia"
+                            name="distancia"
+                            placeholder="Ejemplo: 384400"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="unidad">Unidad</label>
+                        <select id="unidad" name="unidad">
+                            <option value="km">km</option>
+                            <option value="m">m</option>
+                            <option value="ua">UA</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <button type="submit" class="btn">
+                    Calcular y visualizar
+                </button>
+
+                <p class="hint">
+                    Fórmula usada: θ = 2 × arctan(R / d), donde R es el radio del cuerpo
+                    celeste y d es la distancia entre el observador y el cuerpo.
+                </p>
+            </form>
+
+            <div id="error" class="error hidden"></div>
+        </section>
+
+        <section class="card visual-card">
+            <h2>Visualización comparativa</h2>
+
+            <p class="section-text">
+                El cuerpo de comparación se mantiene como referencia visual. El cuerpo observado
+                cambia de tamaño según el cálculo angular.
+            </p>
+
+            <div class="space-view">
+
+                <div class="object-zone">
+                    <div id="referenciaVisual" class="planet-display"></div>
+                    <span id="referenciaLabel" class="visual-tag">Cuerpo de comparación</span>
+                </div>
+
+                <div class="object-zone">
+                    <div id="planetVisual" class="planet-display planet-placeholder"></div>
+                    <span id="planetLabel" class="visual-tag">Cuerpo observado</span>
+                </div>
+
+            </div>
+
+            <p id="visualNote" class="visual-note">
+                La visualización aparecerá después de calcular.
+            </p>
+        </section>
+
+        <section id="resultados" class="results-grid hidden">
+
+            <div class="card result-card">
+                <h3>Cuerpo observado</h3>
+                <p id="resPlaneta">---</p>
+            </div>
+
+            <div class="card result-card">
+                <h3>Comparado con</h3>
+                <p id="resComparado">---</p>
+            </div>
+
+            <div class="card result-card">
+                <h3>Radio observado</h3>
+                <p id="resRadio">---</p>
+            </div>
+
+            <div class="card result-card">
+                <h3>Distancia usada</h3>
+                <p id="resDistancia">---</p>
+            </div>
+
+            <div class="card result-card">
+                <h3>Diámetro angular observado</h3>
+                <p id="resAngular">---</p>
+            </div>
+
+            <div class="card result-card">
+                <h3>Diámetro angular comparación</h3>
+                <p id="resAngularComparado">---</p>
+            </div>
+
+        </section>
+
+        <section id="comparacion" class="card hidden">
+            <h2>Resultado de la comparación</h2>
+            <p id="resComparacion">---</p>
+        </section>
+
+        <section id="explicacion" class="card hidden">
+            <h2>Procedimiento paso a paso</h2>
+
+            <ol id="listaPasos"></ol>
+
+            <h3>Interpretación</h3>
+            <p id="resInterpretacion">---</p>
+        </section>
+
+        <section id="advertencias" class="card warning-card hidden">
+            <h2>Advertencias</h2>
+            <ul id="listaAdvertencias"></ul>
+        </section>
+
+    </main>
+
+    <script src="{{ url_for('static', filename='script.js') }}?v=30"></script>
+</body>
+</html>             
